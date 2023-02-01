@@ -1,9 +1,7 @@
 These two scripts are intened to automate the installation process of the ELK stack and Zeek.
 
-The ELK installlation has basic security enabled by default.
+Some dependencies that may have to be installed on the system before running the scripts are 
 
-There may be some missing dependencies that must be installed before being able to run the scripts.
-
-The automatic ELK installation should work on all debian based systems, however the Zeek installation will only work on Ubuntu 20.04
-
+- Curl
+- Java
 ```test```

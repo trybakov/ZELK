@@ -1,4 +1,4 @@
-<h1>ZELK<h1>
+<h1>ZELK</h1>
 
 
 These two scripts are intened to automate the installation process of the ELK stack and Zeek.

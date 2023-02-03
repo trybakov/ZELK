@@ -3,18 +3,6 @@ import os
 import fileinput
 from os import path
  
-if path.exists("/etc/apt/sources.list.d/security:zeek.list"):
-    print("zeek source list already added")
-else: 
-    subprocess.run("echo 'deb http://download.opensuse.org/repositories/security:/zeek/xUbuntu_20.04/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list", shell=True)
-
-if path.exists("/etc/apt/trusted.gpg.d/security_zeek.gpg"):
-    print("Zeek PGP key already added")
-else:
-    subprocess.run("curl -fsSL https://download.opensuse.org/repositories/security:zeek/xUbuntu_20.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null", shell=True)
-    subprocess.run(["sudo", "apt-get", "update"])
-    subprocess.run(["sudo", "apt-get", "install", "zeek-lts"])
-
 #filebeat configurations and enabling zeek module
 print("Enabling zeek module")
 subprocess.run(["filebeat", "modules", "enable", "zeek"])

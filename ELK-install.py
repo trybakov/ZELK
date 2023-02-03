@@ -5,69 +5,71 @@ from os import path
 
 #fetch the Elasticsaerch GPG key
 if path.exists("/usr/share/keyrings/elasticsearch-keyring.gpg"):
-    print("GPG key already added")
+    print("Elastic GPG key already added")
 else:
-    p1 = subprocess.Popen(["wget", "-qO", "-", "https://artifacts.elastic.co/GPG-KEY-elasticsearch"], stdout=subprocess.PIPE)
-    subprocess.run(["sudo", "gpg", "--dearmor", "-o", "/usr/share/keyrings/elasticsearch-keyring.gpg"], stdin=p1.stdout)
+    print("Adding Elastic GPG key")
+    subprocess.run("wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elasticsearch-keyring.gpg",shell=True)
 #add the source list 
+
 if path.exists("/etc/apt/sources.list.d/elastic-8.x.list"):
-    #subprocess.run(["sudo", "apt-get", "update"])
     print("Source list file already added")
 else:
-    subprocess.run("echo 'deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main' | sudo tee -a /etc/apt/sources.list.d/elastic-8.x.list", shell=True)
-    subprocess.run(["apt-get", "install", "apt-transport-https"],capture_output=True, text=True)
+    print("adding elasic source file")
+    subprocess.run("echo 'deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main' | sudo tee -a /etc/apt/sources.list.d/elastic-8.x.list", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+#add zeek install here
+if path.exists("/etc/apt/trusted.gpg.d/security_zeek.gpg"):
+    print("Zeek GPG key already added")
+else:
+    print("Adding Zeek GPG key")
+    subprocess.run("curl -fsSL https://download.opensuse.org/repositories/security:zeek/xUbuntu_20.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/security_zeek.gpg > /dev/null", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    #add zeek to path
+if path.exists("/etc/apt/sources.list.d/security:zeek.list"):
+    print("zeek source list already added")
+else: 
+    print("adding zeek source file")
+    subprocess.run("echo 'deb http://download.opensuse.org/repositories/security:/zeek/xUbuntu_20.04/ /' | sudo tee /etc/apt/sources.list.d/security:zeek.list", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL )
 
 #update repositories    
-subprocess.run(["sudo", "apt-get", "update"],capture_output=True, text=True) 
-print("Updating repositories")
+print("updating repositories")
+subprocess.run("sudo apt-get update", shell=True,stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) 
 
-#install the stack
-# Check if Elasticsearch is already installed
-result = subprocess.run(["dpkg-query", "-l", "elasticsearch"], capture_output=True, text=True)
-if result.returncode == 0:
-    print("Elasticsearch is already installed, skipping installation")
-else:
-    subprocess.run(["apt-get", "install", "-y", "elasticsearch"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("Installing Elasticsearch")
-# Check if Logstash is already installed
-result = subprocess.run(["dpkg-query", "-l", "logstash"], capture_output=True, text=True)
-if result.returncode == 0:
-    print("Logstash is already installed, skipping installation")
-else:
-    subprocess.run(["apt-get", "install", "-y", "logstash"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("Installing Logstash")
-# Check if Kibana is already installed
-result = subprocess.run(["dpkg-query", "-l", "kibana"], capture_output=True, text=True)
-if result.returncode == 0:
-    print("Kibana is already installed, skipping installation")
-else:
-    subprocess.run(["apt-get", "install", "-y", "kibana"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("Installing Kibana")
-#Check if Filebeat is already installed
-result = subprocess.run(["dpkg-query", "-l", "filebeat"], capture_output=True, text=True)
-if result.returncode == 0:
-    print("Filebeat is already installed, skipping installation")
-else:
-    subprocess.run(["apt-get", "install", "-y", "filebeat"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("installing Filebeat")
+# List of packages to be installed
+
+packages = ["apt-transport-https","elasticsearch", "logstash", "kibana", "filebeat","zeek"]
+
+# Check if packages are already installed
+installed_packages = [
+    package for package in packages
+    if subprocess.run(["dpkg-query", "-l", package], capture_output=True, text=True).returncode == 0]
+
+# List of packages to be installed
+to_install = [package for package in packages if package not in installed_packages]
+
+# Install the packages
+for package in to_install:
+    result = subprocess.run(["apt-get", "install", "-y", package])
 
 print("starting services")
 
 output = subprocess.run(["systemctl", "is-active", "elasticsearch", "kibana", "filebeat"], capture_output=True)
 if output.stdout.decode().strip() != "active":
-    subprocess.run(["systemctl", "start", "elasticsearch"])
-    subprocess.run(["systemctl", "start", "kibana"])
-    subprocess.run(["systemctl", "start", "filebeat"])
+    subprocess.run("systemctl start elasticsearch kibana filebeat",shell=True)
 else:
     print("services already running")
 
 # add the elasticsearch root CA to trusted certificates on host to allow filebeat to connect to elasticsearch without error /usr/local/share/ca-certificates
-subprocess.run("cp /etc/elasticsearch/certs/http_ca.crt /usr/local/share/ca-certificates/",shell=True)
-subprocess.run("update-ca-certificates",shell=True)
+if path.exists("/usr/loca/share/ca-certificates/http_ca.crt"):
+    print("certificate added")
+else:
+    print("adding Elastic CA certificate")
+    subprocess.run("cp /etc/elasticsearch/certs/http_ca.crt /usr/local/share/ca-certificates/",shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run("update-ca-certificates",shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 print("Packages successfully installed")
-print("Enter 1 to display necessarry security information")
-print("If you wish to uninstall the packages please type 'uninstall':")
+print("Enter 1 to display post install info")
+print("Enter 2 to uninstall packages:")
+
 final_input = input()
 if final_input.strip() == '':
     print("No option selected, Exiting script")
@@ -81,11 +83,12 @@ elif final_input.strip() == '1':
     print("Make sure to add the Elastic user and password to the filebeat.yml file")
     
 elif final_input.strip() == 'uninstall':
-    subprocess.run(["apt-get", "remove", "--purge", "elasticsearch", "logstash", "kibana", "filebeat", "-y"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["apt-get", "remove", "--purge", package, "-y"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["rm", "-rf", "/etc/filebeat/"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["rm", "-rf", "/var/lib/elasticsearch"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["rm", "-rf", "/usr/local/share/ca-certificates/http_ca.crt"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(["rm", "-rf", "/etc/ssl/certs/http_ca.pem"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["rm", "-rf", "/opt/zeek/"],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print("packages uninstalled")
 else:
     print("Please select valid option")
